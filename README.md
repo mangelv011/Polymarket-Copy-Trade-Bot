@@ -53,15 +53,6 @@ npm start
 
 The bot will automatically detect and copy trades while respecting your configured limits.
 
-## Configuration Examples
-
-| Your Capital | SIZE_MULTIPLIER | Description |
-|-------------|-----------------|-------------|
-| $10 - $50   | 0.01           | Conservative (1% per trade) |
-| $50 - $200  | 0.02           | Moderate (2% per trade) |
-| $200 - $500 | 0.03           | Aggressive (3% per trade) |
-| $500+       | 0.05           | Very aggressive (5% per trade) |
-
 ## Features
 
 - Real-time trade monitoring via WebSocket
