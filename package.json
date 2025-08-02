@@ -1,0 +1,42 @@
+{
+  "name": "polymarket-copy-trade-bot",
+  "version": "1.0.0",
+  "description": "Automated copy trading bot for Polymarket with real-time monitoring, intelligent risk management, and proportional trading strategies",
+  "main": "dist/bot.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/bot.js",
+    "dev": "ts-node src/bot.ts",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
+    "logs": "tail -f bot.log",
+    "logs:error": "tail -f error.log",
+    "setup": "cp .env.example .env",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "polymarket",
+    "trading",
+    "bot",
+    "copy-trading",
+    "crypto"
+  ],
+  "author": "mangelv011",
+  "license": "MIT",
+  "dependencies": {
+    "@polymarket/clob-client": "^4.20.0",
+    "@polymarket/real-time-data-client": "^1.4.0",
+    "dotenv": "^16.4.5",
+    "ethers": "^5.7.2",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "rimraf": "^5.0.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
