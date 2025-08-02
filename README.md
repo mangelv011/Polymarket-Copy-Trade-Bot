@@ -93,6 +93,10 @@ npm run dev    # Development mode with auto-reload
 **"Size lower than minimum"**: Market requires larger minimum size
 **No trades detected**: Verify TARGET_WALLET_ADDRESS is correct
 
+## Contributors
+
+- Miguel Angel Vallejo ([GitHub](https://github.com/mangelv011))
+
 ## License
 
 MIT License
