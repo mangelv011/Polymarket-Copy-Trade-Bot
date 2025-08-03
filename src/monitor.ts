@@ -130,7 +130,8 @@ export class TradeMonitor {
           console.log(`📊 TRADE DETECTADO PARA COPIAR`);
           console.log(`📈 Mercado: "${tradeTitle}"`);
           console.log(`💹 Operación: ${tradeData.side.toUpperCase()} ${outcome} @ $${price}`);
-          console.log(`👤 Trader origen: ${shortSource} (${sourceWallet})`);
+          console.log(`� Monto original: $${tradeData.size || 'N/A'}`);
+          console.log(`�👤 Trader origen: ${shortSource} (${sourceWallet})`);
           console.log(`🤖 Preparando copia automática...`);
           console.log('='.repeat(60));
           

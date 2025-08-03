@@ -150,11 +150,22 @@ export class PolymarketTrader {
         return;
       }
 
-      // Calcular tamaño usando el multiplicador
+      // Calcular tamaño basado en el monto original del trade (no en balance)
       const originalSize = parseFloat(trade.size);
-      let adjustedAmount = currentBalance * this.config.sizeMultiplier;
+      let adjustedAmount = originalSize * this.config.sizeMultiplier;
       
-      this.logger.info(`🧮 Cálculo inicial: $${currentBalance.toFixed(2)} × ${this.config.sizeMultiplier} = $${adjustedAmount.toFixed(2)}`);
+      this.logger.info(`🧮 Cálculo basado en trade original:`);
+      this.logger.info(`   • Monto original: $${originalSize.toFixed(2)}`);
+      this.logger.info(`   • Multiplicador: ${this.config.sizeMultiplier}x`);
+      this.logger.info(`   • Mi monto: $${originalSize.toFixed(2)} × ${this.config.sizeMultiplier} = $${adjustedAmount.toFixed(2)}`);
+      this.logger.info(`   • Balance disponible: $${currentBalance.toFixed(2)}`);
+
+      // Verificar que tengamos suficiente balance para el trade calculado
+      if (adjustedAmount > currentBalance) {
+        this.logger.warn(`⚠️ Monto calculado ($${adjustedAmount.toFixed(2)}) > Balance ($${currentBalance.toFixed(2)})`);
+        this.logger.info(`🔧 Ajustando al máximo disponible: $${currentBalance.toFixed(2)}`);
+        adjustedAmount = currentBalance;
+      }
 
       // NUEVA LÓGICA: Control diferenciado para BUY vs SELL
       if (side === Side.BUY) {
@@ -236,8 +247,34 @@ export class PolymarketTrader {
     // Intentar con cantidad original primero
     let success = await this.tryExecuteOrder(trade, side, adjustedAmount, currentBalance);
     
+    // Si falla por liquidez y es una cantidad grande, intentar con cantidades menores
+    if (!success && adjustedAmount > this.config.minTradeAmount * 2) {
+      // Intentar con 50% del monto
+      const halfAmount = adjustedAmount / 2;
+      this.logger.warn(`⚠️ Orden original falló, intentando con $${halfAmount.toFixed(2)} (50% del monto)`);
+      
+      if (halfAmount >= this.config.minTradeAmount) {
+        success = await this.tryExecuteOrder(trade, side, halfAmount, currentBalance);
+        
+        // Si falla el 50%, intentar con 25%
+        if (!success) {
+          const quarterAmount = adjustedAmount / 4;
+          if (quarterAmount >= this.config.minTradeAmount) {
+            this.logger.warn(`⚠️ 50% falló, intentando con $${quarterAmount.toFixed(2)} (25% del monto original)`);
+            success = await this.tryExecuteOrder(trade, side, quarterAmount, currentBalance);
+          }
+        }
+        
+        // Si aún falla, intentar con el mínimo
+        if (!success && this.config.minTradeAmount <= currentBalance) {
+          this.logger.warn(`⚠️ Intentando con mínimo absoluto: $${this.config.minTradeAmount}`);
+          success = await this.tryExecuteOrder(trade, side, this.config.minTradeAmount, currentBalance);
+        }
+      }
+    }
+    
     // Si falla y la cantidad es menor al mínimo, intentar con el mínimo
-    if (!success && adjustedAmount < this.config.minTradeAmount) {
+    else if (!success && adjustedAmount < this.config.minTradeAmount) {
       this.logger.warn(`⚠️ Orden falló con $${adjustedAmount.toFixed(2)}, intentando con mínimo $${this.config.minTradeAmount}`);
       
       // Verificar que el mínimo no exceda el balance
@@ -249,7 +286,16 @@ export class PolymarketTrader {
     }
     
     if (!success) {
-      this.logger.error('❌ Trade falló con todas las opciones intentadas');
+      this.logger.error('❌ TRADE NO EJECUTADO - Todas las opciones intentadas fallaron');
+      this.logger.info('📊 RESUMEN:');
+      this.logger.info(`   • Monto original calculado: $${originalAmount.toFixed(2)}`);
+      this.logger.info(`   • Balance disponible: $${currentBalance.toFixed(2)}`);
+      this.logger.info(`   • Motivo más probable: Falta de liquidez en el mercado`);
+      this.logger.info('� RECOMENDACIONES:');
+      this.logger.info('   • Reduce MAX_TRADE_AMOUNT para mercados pequeños');
+      this.logger.info('   • Reduce SIZE_MULTIPLIER para trades más pequeños');
+      this.logger.info('   • Este trade se omitió - Bot continúa con el siguiente');
+      this.logger.info('�🔄 Bot continúa activo y monitoreando nuevos trades...');
     }
   }
 
@@ -274,7 +320,7 @@ export class PolymarketTrader {
       const result = await this.client.createAndPostMarketOrder(
         marketOrderArgs,
         { tickSize: "0.01" }, // tickSize correcto: 0.01 (no 0.001)
-        OrderType.FOK // Fill or Kill
+        OrderType.FAK // Fill and Kill - permite ejecución parcial
       );
 
       if (result && result.success) {
@@ -296,10 +342,22 @@ export class PolymarketTrader {
       }
 
     } catch (error: any) {
+      // Manejo específico de errores comunes
       if (error.message && error.message.includes('insufficient')) {
         this.logger.error('❌ Fondos insuficientes para el trade');
+      } else if (error.response?.data?.error?.includes('fully filled')) {
+        this.logger.warn('⚠️ LIQUIDEZ INSUFICIENTE: No se pudo completar la orden FOK');
+        this.logger.info(`💡 El mercado no tiene suficiente liquidez para $${amount.toFixed(2)}`);
+        this.logger.info('� Esto es normal en mercados pequeños o con poca actividad');
+        this.logger.info('🔄 Bot continúa monitoreando otros trades...');
+      } else if (error.response?.data?.error?.includes('FOK')) {
+        this.logger.warn('⚠️ ORDEN FOK RECHAZADA: Liquidez insuficiente en el libro');
+        this.logger.info('� FOK = Fill or Kill (se completa totalmente o se cancela)');
+        this.logger.info('🎯 Considerar usar cantidades menores para mercados pequeños');
+      } else if (error.response?.data?.error) {
+        this.logger.error('❌ Error de API:', error.response.data.error);
       } else {
-        this.logger.error('❌ Error ejecutando trade:', error);
+        this.logger.error('❌ Error ejecutando trade:', error.response?.data?.error || error.message);
       }
       return false;
     }
