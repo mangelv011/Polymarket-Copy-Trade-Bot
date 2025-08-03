@@ -16,7 +16,10 @@ async function main(): Promise<void> {
     logger.info('='.repeat(50));
     logger.info('🤖 POLYMARKET COPY TRADE BOT');
     logger.info('='.repeat(50));
-    logger.info(`📍 Wallet objetivo: ${config.targetWalletAddress}`);
+    logger.info(`📍 Wallets objetivo (${config.targetWalletAddresses.length}):`);
+    config.targetWalletAddresses.forEach((address, index) => {
+      logger.info(`   ${index + 1}. ${address}`);
+    });
     logger.info(`🔄 Multiplicador: ${config.sizeMultiplier}x`);
     logger.info(`💵 Límites: $${config.minTradeAmount} - $${config.maxTradeAmount}`);
     logger.info(`⚡ Copia trades en TIEMPO REAL (sin restricciones)`);

@@ -6,7 +6,7 @@ dotenv.config();
 export interface BotConfig {
   privateKey: string;
   polymarketProxyAddress: string;
-  targetWalletAddress: string;
+  targetWalletAddresses: string[];
   chainId: number;
   polymarketHost: string;
   signatureType: number;
@@ -21,7 +21,7 @@ export function validateConfig(): BotConfig {
   const requiredVars = [
     'PRIVATE_KEY',
     'POLYMARKET_PROXY_ADDRESS', 
-    'TARGET_WALLET_ADDRESS'
+    'TARGET_WALLET_ADDRESSES'
   ];
 
   for (const varName of requiredVars) {
@@ -42,14 +42,27 @@ export function validateConfig(): BotConfig {
     throw new Error('POLYMARKET_PROXY_ADDRESS inválida');
   }
 
-  if (!isValidAddress(process.env.TARGET_WALLET_ADDRESS!)) {
-    throw new Error('TARGET_WALLET_ADDRESS inválida');
+  // Procesar y validar múltiples direcciones de wallets objetivo
+  const targetAddressesStr = process.env.TARGET_WALLET_ADDRESSES!;
+  const targetWalletAddresses = targetAddressesStr
+    .split(',')
+    .map(addr => addr.trim().toLowerCase())
+    .filter(addr => addr.length > 0);
+
+  if (targetWalletAddresses.length === 0) {
+    throw new Error('TARGET_WALLET_ADDRESSES debe contener al menos una dirección válida');
+  }
+
+  // Validar cada dirección de wallet
+  const invalidAddresses = targetWalletAddresses.filter(addr => !isValidAddress(addr));
+  if (invalidAddresses.length > 0) {
+    throw new Error(`Direcciones de wallet inválidas: ${invalidAddresses.join(', ')}`);
   }
 
   return {
     privateKey: process.env.PRIVATE_KEY!,
     polymarketProxyAddress: process.env.POLYMARKET_PROXY_ADDRESS!,
-    targetWalletAddress: process.env.TARGET_WALLET_ADDRESS!,
+    targetWalletAddresses: targetWalletAddresses,
     chainId: parseInt(process.env.CHAIN_ID || '137'),
     polymarketHost: process.env.POLYMARKET_HOST || 'https://clob.polymarket.com',
     signatureType: parseInt(process.env.SIGNATURE_TYPE || '0'),

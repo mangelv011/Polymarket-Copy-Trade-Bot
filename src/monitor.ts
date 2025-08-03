@@ -3,6 +3,23 @@ import { BotConfig } from './config';
 import { PolymarketTrader, TradeInfo } from './trader';
 import { Logger } from 'winston';
 
+// Función para reproducir sonido de notificación
+function playNotificationSound(): void {
+  try {
+    // En Windows, usar el comando de sistema para reproducir sonido
+    if (process.platform === 'win32') {
+      const { exec } = require('child_process');
+      exec('powershell -c "(New-Object Media.SoundPlayer \\"C:\\Windows\\Media\\Windows Ding.wav\\").PlaySync();"', 
+        { timeout: 1000 }, () => {});
+    } else {
+      // En otros sistemas, imprimir caracteres de campanilla
+      process.stdout.write('\x07\x07\x07'); // ASCII bell character
+    }
+  } catch (error) {
+    // Si falla el sonido, continuar silenciosamente
+  }
+}
+
 export class TradeMonitor {
   private rtClient: RealTimeDataClient;
   private trader: PolymarketTrader;
@@ -33,7 +50,10 @@ export class TradeMonitor {
 
   async startMonitoring(): Promise<void> {
     try {
-      this.logger.info(`🔍 Iniciando monitoreo de la wallet: ${this.config.targetWalletAddress}`);
+      this.logger.info(`🔍 Iniciando monitoreo de ${this.config.targetWalletAddresses.length} wallets:`);
+      this.config.targetWalletAddresses.forEach((address, index) => {
+        this.logger.info(`   ${index + 1}. ${address}`);
+      });
       this.rtClient.connect();
     } catch (error) {
       this.logger.error('❌ Error iniciando monitoreo:', error);
@@ -71,8 +91,16 @@ export class TradeMonitor {
         
         const tradeData = message.payload as any;
         
-        // Verificar si el trade es de la wallet objetivo
-        if (tradeData.proxyWallet?.toLowerCase() === this.config.targetWalletAddress.toLowerCase()) {
+        // Verificar si el trade es de alguna de las wallets objetivo
+        const traderWallet = tradeData.proxyWallet?.toLowerCase();
+        const isTargetWallet = this.config.targetWalletAddresses.some(
+          address => address.toLowerCase() === traderWallet
+        );
+        
+        if (isTargetWallet) {
+          
+          // Reproducir sonido de notificación inmediatamente
+          playNotificationSound();
           
           // Crear clave única para detectar duplicados (usando timestamp + múltiples campos)
           const timestamp = Date.now();
@@ -95,9 +123,16 @@ export class TradeMonitor {
           const tradeTitle = tradeData.title || 'Sin título disponible';
           const outcome = tradeData.outcome || 'Desconocido';
           const price = tradeData.price || '0';
+          const sourceWallet = tradeData.proxyWallet;
+          const shortSource = `${sourceWallet.slice(0, 6)}...${sourceWallet.slice(-4)}`;
           
-          console.log(`📊 TRADE DETECTADO: "${tradeTitle}"`);
-          console.log(`   ↳ ${tradeData.side} ${outcome} @ $${price}`);
+          console.log('='.repeat(60));
+          console.log(`📊 TRADE DETECTADO PARA COPIAR`);
+          console.log(`📈 Mercado: "${tradeTitle}"`);
+          console.log(`💹 Operación: ${tradeData.side.toUpperCase()} ${outcome} @ $${price}`);
+          console.log(`👤 Trader origen: ${shortSource} (${sourceWallet})`);
+          console.log(`🤖 Preparando copia automática...`);
+          console.log('='.repeat(60));
           
           this.logger.info(`🎯 ${message.type} detectado de wallet objetivo!`, {
             type: message.type,
@@ -127,8 +162,10 @@ export class TradeMonitor {
           
           // Copiar solo trades de BUY/SELL (operaciones de trading principales)
           if (tradeInfo.side === 'BUY' || tradeInfo.side === 'SELL') {
+            // Ejecutar copia de trade de forma asíncrona sin bloquear el monitor
             this.trader.copyTrade(tradeInfo).catch(error => {
-              this.logger.error('❌ Error copiando trade:', error);
+              this.logger.error('❌ Error copiando trade - Bot continúa:', error);
+              this.logger.info('🔄 Monitor permanece activo...');
             });
           } else {
             this.logger.info(`ℹ️ Operación ${tradeInfo.side} detectada (no copiada)`);
@@ -136,7 +173,9 @@ export class TradeMonitor {
         }
       }
     } catch (error) {
-      this.logger.error('❌ Error procesando mensaje:', error);
+      // El monitor NUNCA debe detenerse por un error de procesamiento
+      this.logger.error('❌ ERROR PROCESANDO MENSAJE - Monitor continúa:', error);
+      this.logger.info('🔄 Monitor permanece activo y continuará detectando trades...');
     }
   }
 

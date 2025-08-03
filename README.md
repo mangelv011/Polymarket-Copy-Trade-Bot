@@ -1,6 +1,6 @@
 # Polymarket Copy Trading Bot
 
-Real-time Polymarket copy trading bot that automatically mirrors trades from target wallets using market orders with configurable limits and duplicate detection.
+Real-time Polymarket copy trading bot that automatically mirrors trades from multiple target wallets using market orders with configurable limits and duplicate detection.
 
 ## Installation
 
@@ -21,8 +21,8 @@ PRIVATE_KEY=0x...
 # Your Polymarket deposit address
 POLYMARKET_PROXY_ADDRESS=0x...
 
-# Target wallet address to copy
-TARGET_WALLET_ADDRESS=0x...
+# Target wallet addresses to copy (multiple supported)
+TARGET_WALLET_ADDRESSES=0x...,0x...,0x...
 
 # Bot configuration
 SIZE_MULTIPLIER=0.02         # 2% of balance per trade
@@ -42,8 +42,10 @@ SIGNATURE_TYPE=1             # 1 for Magic Link, 0 for MetaMask
 1. Go to polymarket.com → Deposit
 2. Copy the address where you deposit USDC
 
-**Target Wallet:**
-- Address of the trader you want to copy
+**Target Wallets:**
+- Addresses of the traders you want to copy
+- Separate multiple addresses with commas
+- Example: `0x123...,0x456...,0x789...`
 
 ## Usage
 
@@ -51,10 +53,11 @@ SIGNATURE_TYPE=1             # 1 for Magic Link, 0 for MetaMask
 npm start
 ```
 
-The bot will automatically detect and copy trades while respecting your configured limits.
+The bot will automatically detect and copy trades from all configured wallets while respecting your configured limits.
 
 ## Features
 
+- **Multi-wallet monitoring**: Copy trades from multiple target wallets simultaneously
 - Real-time trade monitoring via WebSocket
 - Market order execution for immediate fills
 - Configurable position sizing and risk limits
@@ -74,6 +77,7 @@ npm run dev    # Development mode with auto-reload
 
 - Start with small amounts to test ($20-50)
 - Uses market orders for immediate execution
+- Monitors multiple wallets simultaneously
 - Respects all configured limits
 - Only invests what you can afford to lose
 - Use a separate wallet for bot trading
@@ -82,7 +86,7 @@ npm run dev    # Development mode with auto-reload
 
 **"not enough balance/allowance"**: Need more USDC in your Polymarket account
 **"Size lower than minimum"**: Market requires larger minimum size
-**No trades detected**: Verify TARGET_WALLET_ADDRESS is correct
+**No trades detected**: Verify TARGET_WALLET_ADDRESSES are correct
 
 ## Contributors
 
